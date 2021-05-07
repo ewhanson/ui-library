@@ -7,8 +7,9 @@
 		title="Article DOIs"
 		:crossrefPluginEnabled="true"
 		:isSubmission="true"
-		:issueFilter="issueFilter"
-		hasDOIs="enabledPublishingObjects"
+		:filters="filters"
+		:hasDOIs="hasDOIs"
+		:doi-prefix="doiPrefix"
 	/>
 </template>
 <script>
@@ -32,26 +33,6 @@ export default {
 			// previewItems: issueItems,
 			// previewItemsMax: issueItems.length,
 			filters: [
-				// For submissions
-				{
-					filters: [
-						{
-							title: 'Issues',
-							param: 'issueIds',
-							value: [],
-							component: 'field-select-issues',
-							autosuggestProps: {
-								...fieldBase,
-								...fieldBaseAutosuggest,
-								apiUrl: '/issues.json',
-								name: 'issueIds',
-								label: 'Issues',
-								selectedLabel: 'Assigned'
-							},
-							filterType: 'pkp-filter-autosuggest'
-						}
-					]
-				},
 				// For submissions
 				{
 					heading: 'Publication Status',
@@ -93,28 +74,44 @@ export default {
 						}
 					]
 				},
-				// For issues
 				{
-					heading: 'Publication Status',
 					filters: [
 						{
-							title: 'Published',
-							param: 'isPublished',
-							value: '1'
-						},
-						{
-							title: 'Unpublished',
-							param: 'isPublished',
-							value: '0'
+							title: 'Issues',
+							param: 'issueIds',
+							value: [],
+							component: 'field-select-issues',
+							autosuggestProps: {
+								...fieldBase,
+								...fieldBaseAutosuggest,
+								apiUrl: '/issues.json',
+								name: 'issueIds',
+								label: 'Issues',
+								selectedLabel: 'Assigned'
+							},
+							filterType: 'pkp-filter-autosuggest'
 						}
 					]
 				}
+				// For issues
+				// {
+				// 	heading: 'Publication Status',
+				// 	filters: [
+				// 		{
+				// 			title: 'Published',
+				// 			param: 'isPublished',
+				// 			value: '1'
+				// 		},
+				// 		{
+				// 			title: 'Unpublished',
+				// 			param: 'isPublished',
+				// 			value: '0'
+				// 		}
+				// 	]
+				// }
 			],
-			enabledPublishingObjects: {
-				issues: true,
-				publications: true,
-				representations: true
-			}
+			hasDOIs: ['issues', 'publications', 'representation'],
+			doiPrefix: '10.9876'
 		};
 	},
 	created() {
