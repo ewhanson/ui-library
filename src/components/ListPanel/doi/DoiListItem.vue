@@ -62,7 +62,7 @@
 				<expander
 					:isExpanded="isExpanded"
 					:itemName="item.id.toString()"
-					@toggle="isExpanded = !isExpanded"
+					@toggle="toggleExpanded"
 				/>
 			</div>
 		</div>
@@ -180,11 +180,11 @@ export default {
 				return [];
 			}
 		},
-		isAllExpanded: {
-			type: Boolean,
-			default() {
-				return false;
-			}
+		isExpanded: {
+			type: Boolean
+		},
+		isSelected: {
+			type: Boolean
 		},
 		crossrefPluginEnabled: {
 			type: Boolean,
@@ -221,9 +221,7 @@ export default {
 					label: 'DOI',
 					value: 'value'
 				}
-			],
-			isExpanded: false,
-			isSelected: false
+			]
 		};
 	},
 	computed: {
@@ -428,7 +426,10 @@ export default {
 		 * Toggles item as selected and notifies DoiListPanel
 		 */
 		toggleSelected() {
-			this.$emit('selectItem', this.item.id, !this.isSelected);
+			this.$emit('select-item', this.item.id, !this.isSelected);
+		},
+		toggleExpanded() {
+			this.$emit('expand-item', this.item.id, !this.isExpanded);
 		}
 	},
 	mounted: function() {
@@ -443,14 +444,6 @@ export default {
 				depositStatus: doiItem.depositStatus,
 				apiPath: doiItem.apiPath
 			});
-		}
-	},
-	watch: {
-		isAllExpanded() {
-			this.isExpanded = this.isAllExpanded;
-		},
-		selected(newVal, oldVal) {
-			this.isSelected = this.selected.includes(this.item.id);
 		}
 	}
 };

@@ -15,20 +15,32 @@
 							<!-- TODO: Localize dropdown -->
 							<dropdown label="Bulk Actions">
 								<div class="pkpDropdown__section">
-									<div class="app__userNav__loggedInAs">
-										Take action on {{ selected.length }} selected item(s)
-									</div>
-									<button class="-linkButton" @click="toggleSelectAll">
-										{{ isAllSelected ? 'Deselect all' : 'Select all' }}
-									</button>
-									<br />
-									<button class="-linkButton" @click="toggleExpandAll">
-										<!-- TODO: Localize text -->
-										{{ isAllExpanded ? 'Collapse all' : 'Expand all' }}
-									</button>
+									<ul>
+										<li>
+											<button
+												class="pkpDropdown__action"
+												@click="toggleSelectAll"
+											>
+												{{ isAllSelected ? 'Deselect all' : 'Select all' }}
+											</button>
+										</li>
+										<li>
+											<button
+												class="pkpDropdown__action"
+												@click="toggleExpandAll"
+											>
+												<!-- TODO: Localize text -->
+												{{ isAllExpanded ? 'Collapse all' : 'Expand all' }}
+											</button>
+										</li>
+										<!--										TODO: Consider adding separate Collapse all item-->
+									</ul>
 								</div>
 
 								<div class="pkpDropdown__section">
+									<div class="app__userNav__loggedInAs">
+										Take action on {{ selected.length }} selected item(s)
+									</div>
 									<ul>
 										<li>
 											<button
@@ -122,14 +134,15 @@
 						<doi-list-item
 							:key="item.id"
 							:item="item"
-							:apiUrl="apiUrl"
-							:doiPrefix="doiPrefix"
-							:selected="selected"
-							:isAllExpanded="isAllExpanded"
-							:crossrefPluginEnabled="crossrefPluginEnabled"
-							:isSubmission="isSubmission"
-							:hasDOIs="hasDOIs"
-							@selectItem="selectItem"
+							:api-url="apiUrl"
+							:doi-prefix="doiPrefix"
+							:is-selected="selected.includes(item.id)"
+							:is-expanded="expanded.includes(item.id)"
+							:crossref-plugin-enabled="crossrefPluginEnabled"
+							:is-submission="isSubmission"
+							:has-d-o-is="hasDOIs"
+							@select-item="selectItem"
+							@expand-item="expandItem"
 							@deposit-triggered="openDepositDialog"
 						/>
 					</slot>
@@ -228,10 +241,9 @@ export default {
 	data() {
 		return {
 			activeFilters: {},
-			isAllExpanded: false,
-			isAllSelected: false,
 			isSidebarVisible: true,
-			selected: []
+			selected: [],
+			expanded: []
 		};
 	},
 	methods: {
@@ -264,10 +276,28 @@ export default {
 			}
 		},
 		/**
+		 * Expand a DoiListItem in the DoiListPanel
+		 *
+		 * @param {Number} itemId
+		 * @param {Boolean} expand Whether it should be expanded or closed
+		 */
+		expandItem(itemId, expand) {
+			const expanded = this.expanded.includes(itemId);
+			if (expand && !expanded) {
+				this.expanded.push(itemId);
+			} else if (!expand && expanded) {
+				this.expanded = this.expanded.filter(item => item !== itemId);
+			}
+		},
+		/**
 		 * Toggles expand all for DOI tabs
 		 */
 		toggleExpandAll() {
-			this.isAllExpanded = !this.isAllExpanded;
+			if (this.isAllExpanded) {
+				this.expanded = [];
+			} else {
+				this.expanded = this.items.map(i => i.id);
+			}
 		},
 		/**
 		 * Toggle select all for Ids in selected
@@ -275,10 +305,8 @@ export default {
 		toggleSelectAll() {
 			if (this.isAllSelected) {
 				this.selected = [];
-				this.isAllSelected = false;
 			} else {
 				this.selected = this.items.map(i => i.id);
-				this.isAllSelected = true;
 			}
 		},
 		/**
@@ -415,16 +443,12 @@ export default {
 			this.$modal.hide('deposit');
 		}
 	},
-	watch: {
-		/**
-		 * Sets isAllSelected value based on items in `selected` array
-		 *
-		 * @param newVal
-		 * @param oldVal
-		 */
-		selected(newVal, oldVal) {
-			this.isAllSelected =
-				this.selected.length && this.selected.length === this.items.length;
+	computed: {
+		isAllSelected() {
+			return this.selected.length && this.selected.length === this.items.length;
+		},
+		isAllExpanded() {
+			return this.expanded.length && this.expanded.length === this.items.length;
 		}
 	},
 	mounted() {
