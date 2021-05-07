@@ -1,7 +1,7 @@
 <template>
 	<div class="doiListPanel">
 		<slot>
-			<list-panel :items="items" :isSidebarVisible="isSidebarVisible">
+			<list-panel :items="mutableItems" :isSidebarVisible="isSidebarVisible">
 				<template slot="header">
 					<pkp-header>
 						<h2>{{ title }}</h2>
@@ -144,6 +144,7 @@
 							@select-item="selectItem"
 							@expand-item="expandItem"
 							@deposit-triggered="openDepositDialog"
+							@doi-input-changed="onDoiInputChanged"
 						/>
 					</slot>
 				</template>
@@ -243,7 +244,8 @@ export default {
 			activeFilters: {},
 			isSidebarVisible: true,
 			selected: [],
-			expanded: []
+			expanded: [],
+			mutableItems: []
 		};
 	},
 	methods: {
@@ -296,7 +298,7 @@ export default {
 			if (this.isAllExpanded) {
 				this.expanded = [];
 			} else {
-				this.expanded = this.items.map(i => i.id);
+				this.expanded = this.mutableItems.map(i => i.id);
 			}
 		},
 		/**
@@ -306,7 +308,7 @@ export default {
 			if (this.isAllSelected) {
 				this.selected = [];
 			} else {
-				this.selected = this.items.map(i => i.id);
+				this.selected = this.mutableItems.map(i => i.id);
 			}
 		},
 		/**
@@ -441,20 +443,112 @@ export default {
 		complete: function(r) {
 			window.console.log('[Complete]', r);
 			this.$modal.hide('deposit');
+		},
+		/**
+		 * Callback for doi-input-changed event. Updates pub-id::doi fields at the top level.
+		 *
+		 * @param {String} name
+		 * @param {String} newValue
+		 */
+		onDoiInputChanged(name, newValue) {
+			const nameData = this.parseDoiItemName(name);
+			this.updateDoiDataFromInput(nameData, newValue);
+		},
+
+		/**
+		 * Parses data needed to identify publication object to update with new DOI input
+		 *
+		 * @param {String} name
+		 * @returns {{id: number, galleyId: number, type: string, publicationId: number}}
+		 */
+		parseDoiItemName(name) {
+			const nameData = name.split('-');
+			const type = nameData[0];
+			let id = '';
+			let publicationId = '';
+			let galleyId = '';
+			if (type === 'issue') {
+				id = nameData[1];
+			} else if (type === 'article' || type === 'galley') {
+				id = nameData[1];
+				publicationId = nameData[2];
+				if (type === 'galley') {
+					galleyId = nameData[3];
+				}
+			}
+
+			return {
+				type: type,
+				id: parseInt(id),
+				publicationId: parseInt(publicationId),
+				galleyId: parseInt(galleyId)
+			};
+		},
+		/**
+		 * Updates DOI field within list of publication objects based on values received from doi-input-changed event
+		 *
+		 * @param {{id: number, galleyId: number, type: string, publicationId: number}} itemChanged
+		 * @param {String} doiValue
+		 */
+		updateDoiDataFromInput(itemChanged, doiValue) {
+			let newItemsArray = this.mutableItems;
+
+			const itemIndex = newItemsArray.findIndex(
+				item => item.id === itemChanged.id
+			);
+
+			if (this.isSubmission) {
+				const publicationIndex = newItemsArray[
+					itemIndex
+				].publications.findIndex(item => item.id === itemChanged.publicationId);
+
+				if (itemChanged.type === 'article') {
+					newItemsArray[itemIndex].publications[publicationIndex][
+						'pub-id::doi'
+					] = doiValue;
+				} else if (itemChanged.type === 'galley') {
+					const galleyIndex = newItemsArray[itemIndex].publications[
+						publicationIndex
+					].galleys.findIndex(item => item.id === itemChanged.galleyId);
+					newItemsArray[itemIndex].publications[publicationIndex].galleys[
+						galleyIndex
+					]['pub-id::doi'] = doiValue;
+				}
+			} else {
+				newItemsArray[itemIndex]['pub-id::doi'] = doiValue;
+			}
+
+			this.mutableItems = newItemsArray;
 		}
 	},
 	computed: {
 		isAllSelected() {
-			return this.selected.length && this.selected.length === this.items.length;
+			return (
+				this.selected.length &&
+				this.selected.length === this.mutableItems.length
+			);
 		},
 		isAllExpanded() {
-			return this.expanded.length && this.expanded.length === this.items.length;
+			return (
+				this.expanded.length &&
+				this.expanded.length === this.mutableItems.length
+			);
 		}
 	},
 	mounted() {
 		this.$on('deposit-triggered', (id, action) => {
 			this.openDepositDialog([id], action);
 		});
+
+		// TODO: Remove. Temporary for component library testing
+		if (this.items.length !== 0) {
+			this.mutableItems = this.items;
+		}
+	},
+	watch: {
+		items(newVal, oldVal) {
+			this.mutableItems = newVal;
+		}
 	}
 };
 </script>

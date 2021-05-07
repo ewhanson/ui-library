@@ -122,11 +122,14 @@
 						<div v-if="column.name === 'doi'" class="doiListItem__doiSummary">
 							<div class="doiListItem__doiDetail">
 								<field-doi-text
-									v-bind="getDoiField(row.id)"
+									:value="row.identifier"
+									:apiPath="row.apiPath"
+									:deposit-status="row.depositStatus"
 									:doiPrefix="doiPrefix"
+									:name="row.id"
 									:opt-into-edit="true"
 									:opt-into-edit-label="__('common.edit')"
-									@change="changeDoiInput"
+									@change="onDoiInputChanged"
 								/>
 							</div>
 						</div>
@@ -207,7 +210,6 @@ export default {
 	},
 	data() {
 		return {
-			doiFields: [],
 			doiListColumns: [
 				{
 					name: 'type',
@@ -385,21 +387,9 @@ export default {
 		}
 	},
 	methods: {
-		/**
-		 * Update field-text field for doi input
-		 *
-		 * @param {String} name FieldText name (doi id)
-		 * @param {String} prop FieldText field "value"
-		 * @param {String} newValue
-		 *
-		 */
-		changeDoiInput(name, prop, newValue) {
-			this.getDoiField(name).value = newValue;
-		},
 		triggerDeposit() {
 			// TODO: Use constant for 'deposit' string
 			this.$emit('deposit-triggered', [this.item.id], 'deposit');
-			// pkp.eventBus.$emit('deposit-triggered', this.item.id, 'deposit');
 		},
 		/**
 		 * Builds DOI URLs
@@ -413,16 +403,6 @@ export default {
 			return 'https://doi.org/' + doi;
 		},
 		/**
-		 * Gets field in doiFields array for fieldText input handling
-		 *
-		 * @param {String} id
-		 *
-		 * @returns {Object} doiField
-		 */
-		getDoiField(id) {
-			return this.doiFields.find(fieldObj => fieldObj.name === id);
-		},
-		/**
 		 * Toggles item as selected and notifies DoiListPanel
 		 */
 		toggleSelected() {
@@ -430,20 +410,9 @@ export default {
 		},
 		toggleExpanded() {
 			this.$emit('expand-item', this.item.id, !this.isExpanded);
-		}
-	},
-	mounted: function() {
-		// Gets doi objects from doiList on mount and adds them to doiFields
-		// for further manipulation
-		for (let doiItem of this.doiList) {
-			this.doiFields.push({
-				name: doiItem.id,
-				value: doiItem.identifier,
-				allErrors: {},
-				isDisabled: true,
-				depositStatus: doiItem.depositStatus,
-				apiPath: doiItem.apiPath
-			});
+		},
+		onDoiInputChanged(name, prop, newValue) {
+			this.$emit('doi-input-changed', name, newValue);
 		}
 	}
 };

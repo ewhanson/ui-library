@@ -150,7 +150,7 @@ export default {
 					'X-Http-Method-Override': 'PUT',
 					contentType: 'application/x-www-form-urlencoded'
 				},
-				data: {'pub-id::doi': `${this.value}`},
+				data: {'pub-id::doi': `${this.currentValue}`},
 				success: this.success,
 				error: this.error,
 				complete: this.complete
