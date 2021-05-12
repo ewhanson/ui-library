@@ -144,7 +144,6 @@
 							@select-item="selectItem"
 							@expand-item="expandItem"
 							@deposit-triggered="openDepositDialog"
-							@doi-input-changed="onDoiInputChanged"
 						/>
 					</slot>
 				</template>
@@ -244,8 +243,7 @@ export default {
 			activeFilters: {},
 			isSidebarVisible: true,
 			selected: [],
-			expanded: [],
-			mutableItems: []
+			expanded: []
 		};
 	},
 	methods: {
@@ -298,7 +296,7 @@ export default {
 			if (this.isAllExpanded) {
 				this.expanded = [];
 			} else {
-				this.expanded = this.mutableItems.map(i => i.id);
+				this.expanded = this.items.map(i => i.id);
 			}
 		},
 		/**
@@ -308,7 +306,7 @@ export default {
 			if (this.isAllSelected) {
 				this.selected = [];
 			} else {
-				this.selected = this.mutableItems.map(i => i.id);
+				this.selected = this.items.map(i => i.id);
 			}
 		},
 		/**
@@ -410,9 +408,9 @@ export default {
 					// contentType: 'application/x-www-form-urlencoded'
 				},
 				// data: {},
-				success: this.success,
-				error: this.error,
-				complete: this.complete
+				success: this.onExportSuccess,
+				error: this.onExportError,
+				complete: this.onExportComplete
 			});
 		},
 		/**
@@ -421,7 +419,7 @@ export default {
 		 *
 		 * @param {Object} r The response to the AJAX request
 		 */
-		success: function(r) {
+		onExportSuccess: function(r) {
 			window.console.log('[Success]', r);
 			this.get();
 		},
@@ -431,7 +429,7 @@ export default {
 		 *
 		 * @param {Object} r The response to the AJAX request
 		 */
-		error: function(r) {
+		onExportError: function(r) {
 			window.console.log('[Error]', r);
 		},
 		/**
@@ -440,7 +438,7 @@ export default {
 		 *
 		 * @param {Object} r The response to the AJAX request
 		 */
-		complete: function(r) {
+		onExportComplete: function(r) {
 			window.console.log('[Complete]', r);
 			this.$modal.hide('deposit');
 		},
@@ -491,64 +489,51 @@ export default {
 		 * @param {String} doiValue
 		 */
 		updateDoiDataFromInput(itemChanged, doiValue) {
-			let newItemsArray = this.mutableItems;
-
-			const itemIndex = newItemsArray.findIndex(
-				item => item.id === itemChanged.id
-			);
-
-			if (this.isSubmission) {
-				const publicationIndex = newItemsArray[
-					itemIndex
-				].publications.findIndex(item => item.id === itemChanged.publicationId);
-
-				if (itemChanged.type === 'article') {
-					newItemsArray[itemIndex].publications[publicationIndex][
-						'pub-id::doi'
-					] = doiValue;
-				} else if (itemChanged.type === 'galley') {
-					const galleyIndex = newItemsArray[itemIndex].publications[
-						publicationIndex
-					].galleys.findIndex(item => item.id === itemChanged.galleyId);
-					newItemsArray[itemIndex].publications[publicationIndex].galleys[
-						galleyIndex
-					]['pub-id::doi'] = doiValue;
-				}
-			} else {
-				newItemsArray[itemIndex]['pub-id::doi'] = doiValue;
-			}
-
-			this.mutableItems = newItemsArray;
+			// let newItemsArray = this.mutableItems;
+			//
+			// const itemIndex = newItemsArray.findIndex(
+			// 	item => item.id === itemChanged.id
+			// );
+			//
+			// if (this.isSubmission) {
+			// 	const publicationIndex = newItemsArray[
+			// 		itemIndex
+			// 	].publications.findIndex(item => item.id === itemChanged.publicationId);
+			//
+			// 	if (itemChanged.type === 'article') {
+			// 		newItemsArray[itemIndex].publications[publicationIndex][
+			// 			'pub-id::doi'
+			// 		] = doiValue;
+			//
+			// 	} else if (itemChanged.type === 'galley') {
+			// 		const galleyIndex = newItemsArray[itemIndex].publications[
+			// 			publicationIndex
+			// 		].galleys.findIndex(item => item.id === itemChanged.galleyId);
+			//
+			// 		newItemsArray[itemIndex].publications[publicationIndex].galleys[
+			// 			galleyIndex
+			// 		]['pub-id::doi'] = doiValue;
+			// 	}
+			//
+			// } else {
+			// 	newItemsArray[itemIndex]['pub-id::doi'] = doiValue;
+			// }
+			//
+			// this.mutableItems = newItemsArray;
 		}
 	},
 	computed: {
 		isAllSelected() {
-			return (
-				this.selected.length &&
-				this.selected.length === this.mutableItems.length
-			);
+			return this.selected.length && this.selected.length === this.items.length;
 		},
 		isAllExpanded() {
-			return (
-				this.expanded.length &&
-				this.expanded.length === this.mutableItems.length
-			);
+			return this.expanded.length && this.expanded.length === this.items.length;
 		}
 	},
 	mounted() {
 		this.$on('deposit-triggered', (id, action) => {
 			this.openDepositDialog([id], action);
 		});
-
-		// TODO: Remove. Temporary for component library testing
-		if (this.items.length !== 0) {
-			this.mutableItems = this.items;
-		}
-	},
-	watch: {
-		items(newVal, oldVal) {
-			this.mutableItems = newVal;
-		}
 	}
 };
 </script>
