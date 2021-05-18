@@ -122,10 +122,11 @@
 						<div v-if="column.name === 'doi'" class="doiListItem__doiSummary">
 							<div class="doiListItem__doiDetail">
 								<field-doi-text
-									:value="row.identifier"
-									:apiPath="row.apiPath"
-									:deposit-status="row.depositStatus"
+									:value="
+										mutableDois.find(item => item['id'] === row.id).identifier
+									"
 									:doiPrefix="doiPrefix"
+									:is-editing-enabled="isEditingDoisEnabled"
 									:name="row.id"
 									:opt-into-edit="true"
 									:opt-into-edit-label="__('common.edit')"
@@ -137,9 +138,19 @@
 				</template>
 			</pkp-table>
 			<div class="listPanel__itemExpandedActions">
-				<pkp-button v-if="crossrefPluginEnabled" @click="triggerDeposit">
+				<pkp-button
+					:is-disabled="isDeposited"
+					@click="editOrSaveDois(isEditingDois)"
+				>
+					{{ isEditingDois ? 'Save changes' : 'Edit DOI(s)' }}
+				</pkp-button>
+				<pkp-button
+					v-if="crossrefPluginEnabled"
+					:is-disabled="isEditingDois"
+					@click="triggerDeposit"
+				>
 					<!-- :is-primary="true" -->
-					Deposit DOI
+					Deposit DOI(s)
 				</pkp-button>
 			</div>
 		</div>
@@ -223,7 +234,11 @@ export default {
 					label: 'DOI',
 					value: 'value'
 				}
-			]
+			],
+			isEditingDois: false,
+			isEditingDoisEnabled: false,
+			mutableDois: [],
+			itemsToUpdate: {}
 		};
 	},
 	computed: {
@@ -298,6 +313,7 @@ export default {
 				}
 			}
 
+			this.updateMutableDois(dois);
 			return dois;
 		},
 		/**
@@ -387,20 +403,135 @@ export default {
 		}
 	},
 	methods: {
+		updateMutableDois(doiList) {
+			let dois = [];
+			doiList.forEach(item => {
+				dois.push({id: item.id, identifier: item.identifier});
+			});
+
+			this.mutableDois = dois;
+		},
+		editOrSaveDois(shouldSave) {
+			shouldSave ? this.saveDois() : this.editDois();
+		},
+		editDois() {
+			this.isEditingDois = true;
+			this.isEditingDoisEnabled = true;
+		},
+		saveDois() {
+			this.isEditingDoisEnabled = false;
+			// Handle saving
+			this.mutableDois.forEach(mutableDoi => {
+				const oldDoiItem = this.doiList.find(item => item.id === mutableDoi.id);
+				if (oldDoiItem.identifier !== mutableDoi.identifier) {
+					this.itemsToUpdate[mutableDoi.id] = {
+						isFinished: false,
+						isSuccess: false,
+						apiPath: oldDoiItem.apiPath,
+						identifier: mutableDoi.identifier
+					};
+				}
+			});
+			window.console.log('Pre-save', this.itemsToUpdate);
+			Object.keys(this.itemsToUpdate).forEach(itemId => {
+				this.postUpdatedDoi(
+					itemId,
+					this.itemsToUpdate[itemId].apiPath,
+					this.itemsToUpdate[itemId].identifier
+				);
+			});
+
+			this.isEditingDois = false;
+		},
+		postUpdatedDoi(itemId, apiPath, identifierValue) {
+			$.ajax({
+				url: apiPath,
+				type: 'POST',
+				headers: {
+					'X-Csrf-Token': pkp.currentUser.csrfToken,
+					'X-Http-Method-Override': 'PUT',
+					contentType: 'application/x-www-form-urlencoded'
+				},
+				data: {'pub-id::doi': `${identifierValue}`},
+				indexValue: {
+					itemId: itemId
+				},
+				success: response => this.postUpdatedDoiSuccess(response, itemId),
+				error: response => this.postUpdatedDoiError(response, itemId),
+				complete: response => this.postUpdatedDoiComplete(response, itemId)
+			});
+		},
+		/**
+		 * Callback to fire when the form submission's ajax request has been
+		 * returned successfully
+		 *
+		 * @param {Object} response The response to the AJAX request
+		 * @param {String} itemId Unique ID to identify object change requested
+		 */
+		postUpdatedDoiSuccess(response, itemId) {
+			let items = {...this.itemsToUpdate};
+			items[itemId].isSuccess = true;
+			this.itemsToUpdate = items;
+		},
+		/**
+		 * Callback to fire when the form submission's ajax request has been
+		 * returned with errors
+		 *
+		 * @param {Object} response The response to the AJAX request
+		 * @param {String} itemId Unique ID to identify object change requested
+		 */
+		postUpdatedDoiError(response, itemId) {
+			let items = {...this.itemsToUpdate};
+			items[itemId].isSuccess = false;
+			this.itemsToUpdate = items;
+		},
+		/**
+		 * Callback to fire when the form submission's ajax request has been
+		 * returned, and the success or error callbacks have already been fired
+		 *
+		 * @param {Object} response The response to the AJAX request
+		 * @param {String} itemId Unique ID to identify object change requested
+		 */
+		postUpdatedDoiComplete(response, itemId) {
+			let items = {...this.itemsToUpdate};
+			items[itemId].isFinished = true;
+			this.itemsToUpdate = items;
+
+			const isAllDoisUpdated = Object.keys(this.itemsToUpdate).every(
+				itemId => this.itemsToUpdate[itemId].isFinished === true
+			);
+
+			if (isAllDoisUpdated) {
+				let items = {...this.itemsToUpdate};
+				let didUpdatesFail = false;
+
+				Object.keys(items).forEach(itemId => {
+					if (!items[itemId].isSuccess) {
+						// TODO: Localize
+						didUpdatesFail = true;
+						delete items[itemId];
+					}
+				});
+				this.itemsToUpdate = items;
+
+				if (didUpdatesFail) {
+					// TODO: See how this might work if one DOI is successfully updated and another is not.
+					pkp.eventBus.$emit(
+						'notify',
+						'Some DOI(s) failed to update.',
+						'warning'
+					);
+				}
+
+				if (Object.keys(this.itemsToUpdate).length !== 0) {
+					this.$emit('update-successful-doi-edits', this.itemsToUpdate);
+					this.itemsToUpdate = {};
+				}
+			}
+		},
 		triggerDeposit() {
 			// TODO: Use constant for 'deposit' string
 			this.$emit('deposit-triggered', [this.item.id], 'deposit');
-		},
-		/**
-		 * Builds DOI URLs
-		 * TODO: Add or remove
-		 *
-		 * @param {String} doi
-		 *
-		 * @return {String}
-		 */
-		doiURL(doi) {
-			return 'https://doi.org/' + doi;
 		},
 		/**
 		 * Toggles item as selected and notifies DoiListPanel
@@ -412,7 +543,7 @@ export default {
 			this.$emit('expand-item', this.item.id, !this.isExpanded);
 		},
 		onDoiInputChanged(name, prop, newValue) {
-			this.$emit('doi-input-changed', name, newValue);
+			this.mutableDois.find(item => item.id === name).identifier = newValue;
 		}
 	}
 };

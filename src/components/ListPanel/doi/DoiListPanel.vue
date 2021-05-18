@@ -1,7 +1,7 @@
 <template>
 	<div class="doiListPanel">
 		<slot>
-			<list-panel :items="mutableItems" :isSidebarVisible="isSidebarVisible">
+			<list-panel :items="items" :isSidebarVisible="isSidebarVisible">
 				<template slot="header">
 					<pkp-header>
 						<h2>{{ title }}</h2>
@@ -144,6 +144,7 @@
 							@select-item="selectItem"
 							@expand-item="expandItem"
 							@deposit-triggered="openDepositDialog"
+							@update-successful-doi-edits="updateSuccessfulDoiEdits"
 						/>
 					</slot>
 				</template>
@@ -487,39 +488,60 @@ export default {
 		 *
 		 * @param {{id: number, galleyId: number, type: string, publicationId: number}} itemChanged
 		 * @param {String} doiValue
+		 * @param {Array} listToUpdate
+		 *
+		 * @returns {Array} List of items with individual submission/issue updated
 		 */
-		updateDoiDataFromInput(itemChanged, doiValue) {
-			// let newItemsArray = this.mutableItems;
-			//
-			// const itemIndex = newItemsArray.findIndex(
-			// 	item => item.id === itemChanged.id
-			// );
-			//
-			// if (this.isSubmission) {
-			// 	const publicationIndex = newItemsArray[
-			// 		itemIndex
-			// 	].publications.findIndex(item => item.id === itemChanged.publicationId);
-			//
-			// 	if (itemChanged.type === 'article') {
-			// 		newItemsArray[itemIndex].publications[publicationIndex][
-			// 			'pub-id::doi'
-			// 		] = doiValue;
-			//
-			// 	} else if (itemChanged.type === 'galley') {
-			// 		const galleyIndex = newItemsArray[itemIndex].publications[
-			// 			publicationIndex
-			// 		].galleys.findIndex(item => item.id === itemChanged.galleyId);
-			//
-			// 		newItemsArray[itemIndex].publications[publicationIndex].galleys[
-			// 			galleyIndex
-			// 		]['pub-id::doi'] = doiValue;
-			// 	}
-			//
-			// } else {
-			// 	newItemsArray[itemIndex]['pub-id::doi'] = doiValue;
-			// }
-			//
-			// this.mutableItems = newItemsArray;
+		updateDoisInItemList(itemChanged, doiValue, listToUpdate) {
+			let updatedItems = listToUpdate;
+
+			const itemIndex = updatedItems.findIndex(
+				item => item.id === itemChanged.id
+			);
+
+			if (this.isSubmission) {
+				const publicationIndex = updatedItems[itemIndex].publications.findIndex(
+					item => item.id === itemChanged.publicationId
+				);
+
+				if (itemChanged.type === 'article') {
+					updatedItems[itemIndex].publications[publicationIndex][
+						'pub-id::doi'
+					] = doiValue;
+				} else if (itemChanged.type === 'galley') {
+					const galleyIndex = updatedItems[itemIndex].publications[
+						publicationIndex
+					].galleys.findIndex(item => item.id === itemChanged.galleyId);
+
+					updatedItems[itemIndex].publications[publicationIndex].galleys[
+						galleyIndex
+					]['pub-id::doi'] = doiValue;
+				}
+			} else {
+				updatedItems[itemIndex]['pub-id::doi'] = doiValue;
+			}
+
+			return updatedItems;
+		},
+		/**
+		 *
+		 * @param {Object} itemsToUpdate
+		 */
+		updateSuccessfulDoiEdits(itemsToUpdate) {
+			let newItemsList = this.items.map(x => ({...x}));
+
+			Object.keys(itemsToUpdate).forEach(itemId => {
+				const nameData = this.parseDoiItemName(itemId);
+				newItemsList = this.updateDoisInItemList(
+					nameData,
+					itemsToUpdate[itemId].identifier,
+					newItemsList
+				);
+			});
+
+			// TODO: Localize
+			pkp.eventBus.$emit('notify', 'DOI(s) successfully updated', 'success');
+			this.setItems(newItemsList, this.itemsMax);
 		}
 	},
 	computed: {

@@ -12,38 +12,10 @@
 					:name="localizedName"
 					:aria-describedby="describedByIds"
 					:aria-invalid="errors && errors.length"
-					:disabled="isDisabled"
+					:disabled="!isEditingEnabled"
 					:required="isRequired"
 					:style="inputStyles"
 				/>
-				<span ref="buttons">
-					<pkp-button
-						v-if="optIntoEdit && isDisabled && !isDeposited"
-						class="pkpFormField--text__optIntoEdit"
-						@click="isDisabled = false"
-					>
-						{{ optIntoEditLabel }}
-					</pkp-button>
-					<pkp-button
-						v-if="optIntoEdit && !isDisabled && !isDeposited"
-						class="pkpFormField--text__optIntoEdit"
-						@click="save"
-					>
-						{{ __('common.save') }}
-					</pkp-button>
-				</span>
-				<span role="status" aria-live="polite" aria-atomic="true">
-					<transition name="pkpFormPage__status">
-						<span v-if="isSaving" class="pkpFormPage__status">
-							<spinner />
-							{{ __('common.saving') }}
-						</span>
-						<span v-else-if="hasRecentSave" class="pkpFormPage__status">
-							<icon icon="check" :inline="true" />
-							{{ __('form.saved') }}
-						</span>
-					</transition>
-				</span>
 			</div>
 			<field-error
 				v-if="errors && errors.length"
@@ -61,12 +33,12 @@ export default {
 	name: 'FieldDoiText',
 	extends: FieldBase,
 	props: {
-		apiPath: String,
-		depositStatus: String,
 		doiPrefix: String,
 		inputType: String,
-		optIntoEdit: Boolean,
-		optIntoEditLabel: String,
+		isEditingEnabled: {
+			type: Boolean,
+			required: true
+		},
 		size: {
 			default: 'normal',
 			validator: function(value) {
@@ -109,83 +81,13 @@ export default {
 				classes.push('pkpFormField__control--hasPrefix');
 			}
 			return classes;
-		},
-		/**
-		 * Returns deposit status for editing control
-		 *
-		 * @return {Boolean}
-		 */
-		isDeposited() {
-			return this.depositStatus === 'deposited';
 		}
 	},
 	watch: {
-		/**
-		 * When saving, set the focus to the button wrapper element so it doesn't
-		 * get dropped as the dom updates
-		 */
-		isSaving() {
-			this.$refs.buttons.focus();
-		},
 		isDisabled(newValue, oldValue) {
 			if (newValue === false && this.value === null) {
 				this.currentValue = this.doiPrefix;
 			}
-		}
-	},
-	methods: {
-		/**
-		 * Submit the DOI edits
-		 */
-		save() {
-			this.isSaving = true;
-
-			// TODO: Error handling needed here
-
-			$.ajax({
-				url: this.apiPath,
-				type: 'POST',
-				headers: {
-					'X-Csrf-Token': pkp.currentUser.csrfToken,
-					'X-Http-Method-Override': 'PUT',
-					contentType: 'application/x-www-form-urlencoded'
-				},
-				data: {'pub-id::doi': `${this.currentValue}`},
-				success: this.success,
-				error: this.error,
-				complete: this.complete
-			});
-		},
-		/**
-		 * Callback to fire when the form submission's ajax request has been
-		 * returned successfully
-		 *
-		 * @param {Object} r The response to the AJAX request
-		 */
-		success: function(r) {
-			this.lastSaveTimestamp = Date.now();
-			// TODO: Update value with response value
-			// TODO: Emit set or saveDoi signal
-			// this.$emit('saveDoi', this.name, this.value);
-			this.isDisabled = true;
-		},
-		/**
-		 * Callback to fire when the form submission's ajax request has been
-		 * returned with errors
-		 *
-		 * @param {Object} r The response to the AJAX request
-		 */
-		error: function(r) {
-			// TODO: Handle AJAX error
-		},
-		/**
-		 * Callback to fire when the form's submission ajax request has been
-		 * returned, and the success or error callbacks have already been fired.
-		 *
-		 * @param {Object} r The response to the AJAX request
-		 */
-		complete() {
-			this.isSaving = false;
 		}
 	},
 	mounted() {
