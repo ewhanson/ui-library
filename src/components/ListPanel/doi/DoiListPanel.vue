@@ -405,42 +405,67 @@ export default {
 				type: 'POST',
 				headers: {
 					'X-Csrf-Token': pkp.currentUser.csrfToken
-					// 'X-Http-Method-Override': 'PUT',
-					// contentType: 'application/x-www-form-urlencoded'
 				},
-				// data: {},
-				success: this.onExportSuccess,
-				error: this.onExportError,
-				complete: this.onExportComplete
+				indexValue: {
+					action: action
+				},
+				success: (response, textStatus, jqXHR) =>
+					this.onExportSuccess(response, textStatus, jqXHR, action),
+				error: response => this.onExportError(response, action),
+				complete: response => this.onExportComplete(response, action)
 			});
 		},
 		/**
 		 * Callback to fire when the form submission's ajax request has been
 		 * returned successfully
 		 *
-		 * @param {Object} r The response to the AJAX request
+		 * @param {Object} response The response to the AJAX request
+		 * @param {String} textStatus Response status as text
+		 * @param {Object} jqXHR jQuery superset of XMLHttpRequest
+		 * @param {String} action The export action executed (deposit, export, markRegistered)
 		 */
-		onExportSuccess: function(r) {
-			window.console.log('[Success]', r);
+		onExportSuccess(response, textStatus, jqXHR, action) {
+			window.console.log('[Success]:', response);
+
+			// 'Content-Disposition: attachment;' header will not trigger download from an XmlHttpRequest.
+			// We have to trigger the download from the browser directly.
+			if (action === 'export') {
+				const xmlString = new XMLSerializer().serializeToString(response);
+				const blob = new Blob([xmlString], {type: 'text/xml'});
+				const uri = URL.createObjectURL(blob);
+
+				const header = jqXHR.getResponseHeader('content-disposition');
+				const fileName = header.match(/filename="([\S]+)"/i)[1];
+
+				let a = $('<a />');
+				a.attr('download', fileName);
+				a.attr('href', uri);
+
+				const docBody = $('body');
+				docBody.append(a);
+				a[0].click();
+				docBody.remove(a);
+			}
 			this.get();
 		},
 		/**
 		 * Callback to fire when the form submission's ajax request has been
 		 * returned with errors
 		 *
-		 * @param {Object} r The response to the AJAX request
+		 * @param {Object} response The response to the AJAX request
+		 * @param {String} action The export action executed (deposit, export, markRegistered)
 		 */
-		onExportError: function(r) {
-			window.console.log('[Error]', r);
+		onExportError(response, action) {
+			window.console.log('[Error]', response);
 		},
 		/**
 		 * Callback to fire when the form's submission ajax request has been
 		 * returned, and the success or error callbacks have already been fired.
 		 *
-		 * @param {Object} r The response to the AJAX request
+		 * @param {Object} response The response to the AJAX request
+		 * @param {String} action The export action executed (deposit, export, markRegistered)
 		 */
-		onExportComplete: function(r) {
-			window.console.log('[Complete]', r);
+		onExportComplete(response, action) {
 			this.$modal.hide('deposit');
 		},
 		/**
