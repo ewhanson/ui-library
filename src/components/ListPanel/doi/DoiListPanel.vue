@@ -446,7 +446,9 @@ export default {
 				a[0].click();
 				docBody.remove(a);
 			}
+
 			this.get();
+			this.selected = [];
 		},
 		/**
 		 * Callback to fire when the form submission's ajax request has been

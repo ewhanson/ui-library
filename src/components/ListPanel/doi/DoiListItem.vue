@@ -341,10 +341,14 @@ export default {
 				? this.item
 				: this.publicationWithCrossrefStatus;
 
-			return !(
-				item['crossref::status'] === null ||
-				item['crossref::status'] === 'failed'
-			);
+			if (typeof item['crossref::status'] === 'undefined') {
+				return false;
+			} else {
+				return !(
+					item['crossref::status'] === null ||
+					item['crossref::status'] === 'failed'
+				);
+			}
 		},
 		/**
 		 * Has the current item been published.
