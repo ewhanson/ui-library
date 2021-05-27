@@ -145,14 +145,29 @@
 				>
 					{{ isEditingDois ? 'Save changes' : 'Edit DOI(s)' }}
 				</pkp-button>
-				<pkp-button
-					v-if="crossrefPluginEnabled"
-					:is-disabled="isEditingDois"
-					@click="triggerDeposit"
-				>
-					<!-- :is-primary="true" -->
-					Deposit DOI(s)
-				</pkp-button>
+			</div>
+
+			<div class="doiListItem__depositorDetails">
+				<div class="doiListItem__depositorName">
+					Crossref
+				</div>
+				<span class="doiListItem__depositorDescription">
+					{{
+						isDeposited
+							? 'The metadata for this item has been submitted to Crossref'
+							: 'The metadata for this article has not been submitted to Crossref'
+					}}
+				</span>
+				<div class="doiListItem__depositorActions">
+					<pkp-button
+						v-if="crossrefPluginEnabled"
+						:is-disabled="isEditingDois"
+						@click="handleDepositorActions"
+					>
+						<!-- :is-primary="true" -->
+						{{ isDeposited ? 'View record' : 'Deposit DOI(s)' }}
+					</pkp-button>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -536,6 +551,12 @@ export default {
 				this.isEditingDois = false;
 			}
 		},
+		handleDepositorActions() {
+			return this.isDeposited ? this.viewRecord() : this.triggerDeposit();
+		},
+		viewRecord() {
+			// TODO: Handle viewing resolved DOI or record
+		},
 		triggerDeposit() {
 			// TODO: Use constant for 'deposit' string
 			this.$emit('deposit-triggered', [this.item.id], 'deposit');
@@ -561,6 +582,34 @@ export default {
 
 .crossrefDepositError {
 	background: rgb(234, 237, 238);
+}
+
+.doiListItem__depositorDetails {
+	//width: 100%;
+	//max-width: 100%;
+	border: 1px solid #eee;
+	//border-collapse: collapse;
+	//border-radius: 2px;
+	padding: 1rem;
+	margin-top: 0.5rem;
+}
+
+.doiListItem__depositorName {
+	margin: 0;
+	font-size: @font-base;
+	font-weight: @bold;
+}
+
+.doiListItem__depositorDescription {
+	font-size: @font-sml;
+	line-height: 1.5rem;
+	flex: 1;
+	min-width: 0;
+}
+
+.doiListItem__depositorActions {
+	margin-top: 0.5rem;
+	text-align: right;
 }
 
 .doiListItem__doiSummary {
