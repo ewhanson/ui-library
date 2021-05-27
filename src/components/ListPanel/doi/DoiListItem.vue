@@ -138,8 +138,9 @@
 				</template>
 			</pkp-table>
 			<div class="listPanel__itemExpandedActions">
+				<spinner v-if="isSaving" />
 				<pkp-button
-					:is-disabled="isDeposited"
+					:is-disabled="isDeposited || isSaving"
 					@click="editOrSaveDois(isEditingDois)"
 				>
 					{{ isEditingDois ? 'Save changes' : 'Edit DOI(s)' }}
@@ -237,6 +238,7 @@ export default {
 			],
 			isEditingDois: false,
 			isEditingDoisEnabled: false,
+			isSaving: false,
 			mutableDois: [],
 			itemsToUpdate: {}
 		};
@@ -436,7 +438,7 @@ export default {
 					};
 				}
 			});
-			window.console.log('Pre-save', this.itemsToUpdate);
+			this.isSaving = true;
 			Object.keys(this.itemsToUpdate).forEach(itemId => {
 				this.postUpdatedDoi(
 					itemId,
@@ -444,8 +446,6 @@ export default {
 					this.itemsToUpdate[itemId].identifier
 				);
 			});
-
-			this.isEditingDois = false;
 		},
 		postUpdatedDoi(itemId, apiPath, identifierValue) {
 			$.ajax({
@@ -531,6 +531,9 @@ export default {
 					this.$emit('update-successful-doi-edits', this.itemsToUpdate);
 					this.itemsToUpdate = {};
 				}
+
+				this.isSaving = false;
+				this.isEditingDois = false;
 			}
 		},
 		triggerDeposit() {
