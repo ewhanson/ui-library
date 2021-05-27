@@ -399,6 +399,14 @@ export default {
 			});
 		},
 		executeExportAction(itemIds, action) {
+			// TODO: API Grammar:
+			// PUT doi/submissions/{action}
+			// {
+			//	  ids: [1,2,3]
+			// }
+			// doi/submissions/{submissionID}/{action}/
+			// doi/submissions/{action}/all
+			// possibility: GET doi/submissions
 			const exportUrl = `${this.apiUrl}/crossref?${action}=${action}&submissionIds=${itemIds}`;
 			$.ajax({
 				url: exportUrl,
@@ -426,6 +434,8 @@ export default {
 		 */
 		onExportSuccess(response, textStatus, jqXHR, action) {
 			window.console.log('[Success]:', response);
+
+			// TODO: Redirect browser to URL handler (doi/export/{tempFileId}) that initiates the download
 
 			// 'Content-Disposition: attachment;' header will not trigger download from an XmlHttpRequest.
 			// We have to trigger the download from the browser directly.
