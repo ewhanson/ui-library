@@ -135,6 +135,7 @@
 							:key="item.id"
 							:item="item"
 							:api-url="apiUrl"
+							:doi-api-url="doiApiUrl"
 							:doi-prefix="doiPrefix"
 							:is-selected="selected.includes(item.id)"
 							:is-expanded="expanded.includes(item.id)"
@@ -237,6 +238,10 @@ export default {
 			default() {
 				return [];
 			}
+		},
+		doiApiUrl: {
+			type: String,
+			required: true
 		}
 	},
 	data() {
@@ -407,12 +412,18 @@ export default {
 			// doi/submissions/{submissionID}/{action}/
 			// doi/submissions/{action}/all
 			// possibility: GET doi/submissions
-			const exportUrl = `${this.apiUrl}/crossref?${action}=${action}&submissionIds=${itemIds}`;
+			const exportUrl = `${this.doiApiUrl}/${action}`;
+			// const exportUrl = `${this.apiUrl}/crossref?${action}=${action}&submissionIds=${itemIds}`;
 			$.ajax({
 				url: exportUrl,
 				type: 'POST',
 				headers: {
-					'X-Csrf-Token': pkp.currentUser.csrfToken
+					'X-Csrf-Token': pkp.currentUser.csrfToken,
+					'X-Http-Method-Override': 'PUT',
+					contentType: 'application/x-www-form-urlencoded'
+				},
+				data: {
+					ids: itemIds
 				},
 				indexValue: {
 					action: action

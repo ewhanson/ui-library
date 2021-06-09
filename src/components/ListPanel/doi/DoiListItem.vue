@@ -194,6 +194,10 @@ export default {
 			type: String,
 			required: true
 		},
+		doiApiUrl: {
+			type: String,
+			required: true
+		},
 		doiPrefix: {
 			type: String,
 			default() {
