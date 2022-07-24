@@ -754,6 +754,17 @@ export default {
 		 */
 		getIsPublishedBase(item) {
 			return item.status === pkp.const.STATUS_PUBLISHED;
+		},
+		getVersions(item) {
+			return item.publications?.map(publication => {
+				return {
+					id: publication.id,
+					isCurrentVersion: item.currentPublicationId === publication.id,
+					versionNumber: publication.version,
+					urlPublished: publication.urlPublished,
+					datePublished: publication.datePublished,
+				}
+			}) || [];
 		}
 	},
 	computed: {
@@ -771,6 +782,7 @@ export default {
 					title: this.getItemTitle(item),
 					urlPublished: this.getUrlPublished(item),
 					isPublished: this.getIsPublished(item),
+					versions: this.getVersions(item),
 					doiObjects: []
 				};
 				newItem = this.addDoiObjects(newItem);

@@ -64,7 +64,7 @@
 			v-if="isExpanded"
 			class="listPanel__itemExpanded listPanel__itemExpanded--doi"
 		>
-			<pkp-table :columns="doiListColumns" :rows="item.doiObjects">
+			<pkp-table :columns="doiListColumns" :rows="item.doiObjects.filter(doiObject => doiObject.isCurrentVersion)">
 				<template slot-scope="{row}">
 					<table-cell :column="doiListColumns[0]" :row="row">
 						<label :for="row.uid">{{ row.displayType }}</label>
@@ -74,19 +74,38 @@
 							class="pkpFormField__input pkpFormField--text__input"
 							:id="row.uid"
 							type="text"
-							:disabled="!(isEditingDois && !isSaving)"
+							:readonly="!(isEditingDois && !isSaving)"
 							v-model="mutableDois.find(doi => doi.uid === row.uid).identifier"
 						/>
 					</table-cell>
 				</template>
 			</pkp-table>
-			<div class="listPanel__itemExpandedActions">
+			<div
+				class="listPanel__itemExpandedActions doiListPanel__itemExpandedActions"
+			>
+				<div
+					class="doiListPanel__itemExpandedActions--actionsBar"
+					v-if="item.versions.length > 1 && !isEditingDois && !isSaving"
+				>
+					{{
+						__('doi.manager.versions.countStatement', {
+							count: item.versions.length
+						})
+					}}
+					<button
+						:ref="`versionsModal-${item.id}`"
+						class="-linkButton"
+						@click="$modal.show(`versionsModal-${item.id}`)"
+					>
+						{{ __('doi.manager.versions.view') }}
+					</button>
+				</div>
 				<spinner v-if="isSaving" />
 				<pkp-button
 					:is-disabled="isDeposited || isSaving"
 					@click="isEditingDois ? saveDois() : editDois()"
 				>
-					{{ isEditingDois ? 'Save changes' : 'Edit DOI(s)' }}
+					{{ isEditingDois ? __('doi.manager.saveDois') : __('doi.manager.editDois') }}
 				</pkp-button>
 			</div>
 
@@ -160,6 +179,51 @@
 						<p>{{ registrationAgencyInfo['registeredMessagePreamble'] }}</p>
 						<p>{{ item.doiObjects[0]['registeredMessage'] }}</p>
 					</modal>
+					<!-- Version Modal -->
+					<modal
+						:close-label="__('common.close')"
+						:name="`versionsModal-${item.id}`"
+						:title="__('doi.manager.versions.modalTitle')"
+						@closed="setFocusToRef(`versionsModal-${item.id}`)"
+					>
+						<div class="doiListItem__versionContainer" v-for="version in item.versions" :key="version.id">
+							<a
+								:href="version.urlPublished"
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								{{ getVersionHeader(version) }}
+							</a>
+							<pkp-table :columns="doiListColumns" :rows="item.doiObjects.filter(doiObject => doiObject.id === version.id)">
+								<template slot-scope="{row}">
+									<table-cell :column="doiListColumns[0]" :row="row">
+										<label :for="row.uid">{{ row.displayType }}</label>
+									</table-cell>
+									<table-cell :column="doiListColumns[1]" :row="row">
+										<input
+											class="pkpFormField__input pkpFormField--text__input"
+											:id="row.uid"
+											type="text"
+											:readonly="!(isEditingDois && !isSaving)"
+											v-model="
+												mutableDois.find(doi => doi.uid === row.uid).identifier
+											"
+										/>
+									</table-cell>
+								</template>
+							</pkp-table>
+						</div>
+
+						<div class="doiListItem__versionContainer--actionsBar">
+							<spinner v-if="isSaving" />
+							<pkp-button
+								:is-disabled="isDeposited || isSaving"
+								@click="isEditingDois ? saveDois() : editDois()"
+							>
+								{{ isEditingDois ? __('doi.manager.saveDois') : __('doi.manager.editDois') }}
+							</pkp-button>
+						</div>
+					</modal>
 				</div>
 			</div>
 		</div>
@@ -196,6 +260,15 @@ export default {
 			}
 		},
 		/**
+		 * Publication version info
+		 * @typedef {Object} PublicationVersionInfo
+		 * @property {Number} id
+		 * @property {boolean} isCurrentVersion
+		 * @property {Number} versionNumber
+		 * @property {string} urlPublished
+		 * @property {?string} datePublished
+		 */
+		/**
 		 * Publication Object with a DOI
 		 * @typedef {Object} DoiObject
 		 * @property {Number} depositStatus - One of Doi::STATUS_* constants
@@ -204,6 +277,7 @@ export default {
 		 * @property {?string} errorMessage - Deposit error message, if any
 		 * @property {Number} id - Publication object ID
 		 * @property {string} identifier - DOI
+		 * @property {boolean} isCurrentVersion - Whether DOI belongs to currently published version or not. Defaults to true for issues.
 		 * @property {?string} registeredMessage - Deposit registration message, if any
 		 * @property {string} type - Item type for internal use
 		 * @property {string} uid - Unique identifier for item in list
@@ -217,6 +291,7 @@ export default {
 		 * @property {string} title - Display title
 		 * @property {string} urlPublished - URL for item
 		 * @property {boolean} isPublished - Whether item published
+		 * @property {PublicationVersionInfo} versions - Info on publication version
 		 * @property {DoiObject[]} doiObjects - All associated publication objects than can have a DOI
 		 */
 		/** @type {DoiListItemData} */
@@ -368,7 +443,9 @@ export default {
 				dois.push({
 					uid: item.uid,
 					doiId: item.doiId,
-					identifier: item.identifier
+					identifier: item.identifier,
+					pubObjectType: item.type,
+					pubObjectId: item.id
 				});
 			});
 
@@ -477,7 +554,11 @@ export default {
 					'X-Http-Method-Override': 'PUT',
 					contentType: 'application/x-www-form-urlencoded'
 				},
-				data: {doi: `${itemToUpdate.identifier}`},
+				data: {
+					doi: itemToUpdate.identifier,
+					pubObjectType: itemToUpdate.pubObjectType,
+					pubObjectId: itemToUpdate.pubObjectId
+				},
 				success: response =>
 					this.postUpdatedDoiSuccess(response, itemToUpdate.uid),
 				error: response => this.postUpdatedDoiError(response, itemToUpdate.uid),
@@ -495,6 +576,10 @@ export default {
 				headers: {
 					'X-Csrf-Token': pkp.currentUser.csrfToken,
 					'X-Http-Method-Override': 'DELETE'
+				},
+				data: {
+					pubObjectType: itemToUpdate.pubObjectType,
+					pubObjectId: itemToUpdate.pubObjectId
 				},
 				success: response =>
 					this.postUpdatedDoiSuccess(response, itemToUpdate.uid),
@@ -609,7 +694,17 @@ export default {
 		},
 		toggleExpanded() {
 			this.$emit('expand-item', this.item.id);
-		}
+		},
+		/**
+		 * @param {PublicationVersionInfo} version
+		 */
+		getVersionHeader(version) {
+			const dateInfo =
+				version.datePublished !== null
+					? `(${version.datePublished})`
+					: this.__('publication.status.unpublished');
+			return `${this.__('publication.version', {version: version.versionNumber})} ${dateInfo}`;
+		},
 	},
 	mounted() {
 		this.updateMutableDois(this.item.doiObjects);
@@ -723,4 +818,26 @@ export default {
 .listPanel__item--doi .listPanel__itemExpanded .pkpTable {
 	margin-top: 0.5rem;
 }
+
+.doiListItem__versionContainer {
+	margin-top: 0.5rem;
+}
+
+.doiListItem__versionContainer--actionsBar {
+	display: flex;
+	align-items: center;
+	justify-content: end;
+	margin-top: 0.5rem;
+}
+
+.doiListPanel__itemExpandedActions {
+	display: flex;
+	align-items: center;
+	justify-content: end;
+}
+
+.doiListPanel__itemExpandedActions--actionsBar {
+	padding-right: 0.5rem;
+}
+
 </style>
