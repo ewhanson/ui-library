@@ -14,7 +14,7 @@ export default {
 			let newMappedItem = mappedItem;
 			const originalItem = this.items.find(item => item.id === mappedItem.id);
 
-			originalItem.publications.map(publication => {
+			originalItem.publications.forEach(publication => {
 				const isCurrentVersion =
 					publication.id === this.getCurrentPublication(originalItem).id;
 
@@ -22,7 +22,7 @@ export default {
 				if (this.enabledDoiTypes.includes('publication')) {
 					const doiObject = publication.doiObject;
 
-					let updateWithNewDoiEndpoint = `${this.doiApiUrl}/publications/${originalItem.currentPublicationId}`;
+					let updateWithNewDoiEndpoint = `${this.doiApiUrl}/publications/${publication.id}`;
 					updateWithNewDoiEndpoint = updateWithNewDoiEndpoint.replace(
 						/dois/g,
 						'_dois'

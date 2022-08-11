@@ -14,87 +14,58 @@ export default {
 			let newMappedItem = mappedItem;
 			const originalItem = this.items.find(item => item.id === mappedItem.id);
 
-			// Submissions
-			if (this.enabledDoiTypes.includes('publication')) {
-				let doiObject = this.getCurrentPublication(originalItem).doiObject;
+			originalItem.publications.forEach(publication => {
+				const isCurrentVersion =
+					publication.id === this.getCurrentPublication(originalItem).id;
 
-				let updateWithNewDoiEndpoint = `${this.doiApiUrl}/publications/${originalItem.currentPublicationId}`;
-				updateWithNewDoiEndpoint = updateWithNewDoiEndpoint.replace(
-					/dois/g,
-					'_dois'
-				);
+				// Submissions
+				if (this.enabledDoiTypes.includes('publication')) {
+					let doiObject = publication.doiObject;
 
-				/** @type {DoiObject} */
-				const publicationItem = {
-					id: this.getCurrentPublication(originalItem).id,
-					doiId: doiObject === null ? null : doiObject.id,
-					uid: `${originalItem.id}-monograph-${
-						this.getCurrentPublication(originalItem).id
-					}`,
-					displayType: 'Monograph',
-					type: 'monograph',
-					identifier: doiObject === null ? '' : doiObject.doi,
-					depositStatus:
-						doiObject === null
-							? pkp.const.DOI_STATUS_UNREGISTERED
-							: doiObject.status,
-					errorMessage:
-						doiObject === null
-							? null
-							: doiObject[this.registrationAgencyInfo['errorMessageKey']],
-					registeredMessage:
-						doiObject === null
-							? null
-							: doiObject[this.registrationAgencyInfo['registeredMessageKey']],
-					updateWithNewDoiEndpoint: updateWithNewDoiEndpoint
-				};
-
-				newMappedItem.doiObjects.push(publicationItem);
-			}
-
-			if (this.enabledDoiTypes.includes('chapter')) {
-				this.getCurrentPublication(originalItem).chapters.forEach(chapter => {
-					let doiObject = chapter.doiObject;
-
-					let updateWithNewDoiEndpoint = `${this.doiApiUrl}/chapters/${chapter.id}`;
+					let updateWithNewDoiEndpoint = `${this.doiApiUrl}/publications/${originalItem.currentPublicationId}`;
 					updateWithNewDoiEndpoint = updateWithNewDoiEndpoint.replace(
 						/dois/g,
 						'_dois'
 					);
 
-					/** @type {DoiObject} */
-					const chapterItem = {
-						id: chapter.id,
-						doiId: doiObject === null ? null : doiObject.id,
-						uid: `${originalItem.id}-chapter-${chapter.id}`,
-						displayType: this.localize(chapter.title),
-						type: 'chapter',
-						identifier: doiObject === null ? '' : doiObject.doi,
-						depositStatus:
-							doiObject === null
-								? pkp.const.DOI_STATUS_UNREGISTERED
-								: doiObject.status,
-						errorMessage:
-							doiObject === null
-								? null
-								: doiObject[this.registrationAgencyInfo['errorMessageKey']],
-						registeredMessage:
-							doiObject === null
-								? null
-								: doiObject[
-										this.registrationAgencyInfo['registeredMessageKey']
-								  ],
-						updateWithNewDoiEndpoint: updateWithNewDoiEndpoint
-					};
+					newMappedItem.doiObjects.push(
+						this.mapDoiObject(doiObject, {
+							id: publication.id,
+							uid: `${originalItem.id}-monograph-${publication.id}`,
+							displayType: 'Monograph',
+							type: 'publication',
+							isCurrentVersion,
+							updateWithNewDoiEndpoint
+						})
+					);
+				}
 
-					newMappedItem.doiObjects.push(chapterItem);
-				});
-			}
+				if (this.enabledDoiTypes.includes('chapter')) {
+					publication.chapters.forEach(chapter => {
+						let doiObject = chapter.doiObject;
 
-			// Publication Formats
-			if (this.enabledDoiTypes.includes('representation')) {
-				this.getCurrentPublication(originalItem).publicationFormats.forEach(
-					publicationFormat => {
+						let updateWithNewDoiEndpoint = `${this.doiApiUrl}/chapters/${chapter.id}`;
+						updateWithNewDoiEndpoint = updateWithNewDoiEndpoint.replace(
+							/dois/g,
+							'_dois'
+						);
+
+						newMappedItem.doiObjects.push(
+							this.mapDoiObject(doiObject, {
+								id: chapter.id,
+								uid: `${originalItem.id}-chapter-${chapter.id}`,
+								displayType: this.localize(chapter.title),
+								type: 'chapter',
+								isCurrentVersion,
+								updateWithNewDoiEndpoint
+							})
+						);
+					});
+				}
+
+				// Publication Formats
+				if (this.enabledDoiTypes.includes('representation')) {
+					publication.publicationFormats.forEach(publicationFormat => {
 						let doiObject = publicationFormat.doiObject;
 
 						let updateWithNewDoiEndpoint = `${this.doiApiUrl}/publicationFormats/${publicationFormat.id}`;
@@ -103,41 +74,24 @@ export default {
 							'_dois'
 						);
 
-						/** @type {DoiObject} */
-						const publicationFormatItem = {
-							id: publicationFormat.id,
-							doiId: doiObject === null ? null : doiObject.id,
-							uid: `${originalItem.id}-publicationFormat-${publicationFormat.id}`,
-							displayType: this.__('manager.dois.formatIdentifier.file', {
-								format: this.localize(publicationFormat.name)
-							}),
-							type: 'publicationFormat',
-							identifier: doiObject === null ? '' : doiObject.doi,
-							depositStatus:
-								doiObject === null
-									? pkp.const.DOI_STATUS_UNREGISTERED
-									: doiObject.status,
-							errorMessage:
-								doiObject === null
-									? null
-									: doiObject[this.registrationAgencyInfo['errorMessageKey']],
-							registeredMessage:
-								doiObject === null
-									? null
-									: doiObject[
-											this.registrationAgencyInfo['registeredMessageKey']
-									  ],
-							updateWithNewDoiEndpoint: updateWithNewDoiEndpoint
-						};
-						newMappedItem.doiObjects.push(publicationFormatItem);
-					}
-				);
-			}
+						newMappedItem.doiObjects.push(
+							this.mapDoiObject(doiObject, {
+								id: publicationFormat.id,
+								uid: `${originalItem.id}-publicationFormat-${publicationFormat.id}`,
+								displayType: this.__('manager.dois.formatIdentifier.file', {
+									format: this.localize(publicationFormat.name)
+								}),
+								type: 'publicationFormat',
+								isCurrentVersion,
+								updateWithNewDoiEndpoint: updateWithNewDoiEndpoint
+							})
+						);
+					});
+				}
 
-			// Submission files
-			if (this.enabledDoiTypes.includes('file')) {
-				this.getCurrentPublication(originalItem).publicationFormats.forEach(
-					publicationFormat => {
+				// Submission files
+				if (this.enabledDoiTypes.includes('file')) {
+					publication.publicationFormats.forEach(publicationFormat => {
 						publicationFormat.submissionFiles.forEach(submissionFile => {
 							let doiObject = submissionFile.doiObject;
 
@@ -147,37 +101,22 @@ export default {
 								'_dois'
 							);
 
-							/** @type {DoiObject} */
-							const submissionFileItem = {
-								id: submissionFile.id,
-								doiId: doiObject === null ? null : doiObject.id,
-								uid: `${originalItem.id}-submissionFile-${submissionFile.id}`,
-								displayType: `${this.localize(
-									publicationFormat.name
-								)} / ${this.localize(submissionFile.name)}`,
-								type: 'submissionFile',
-								identifier: doiObject === null ? '' : doiObject.doi,
-								depositStatus:
-									doiObject === null
-										? pkp.const.DOI_STATUS_UNREGISTERED
-										: doiObject.status,
-								errorMessage:
-									doiObject === null
-										? null
-										: doiObject[this.registrationAgencyInfo['errorMessageKey']],
-								registeredMessage:
-									doiObject === null
-										? null
-										: doiObject[
-												this.registrationAgencyInfo['registeredMessageKey']
-										  ],
-								updateWithNewDoiEndpoint: updateWithNewDoiEndpoint
-							};
-							newMappedItem.doiObjects.push(submissionFileItem);
+							newMappedItem.doiObjects.push(
+								this.mapDoiObject(doiObject, {
+									id: submissionFile.id,
+									uid: `${originalItem.id}-submissionFile-${submissionFile.id}`,
+									displayType: `${this.localize(
+										publicationFormat.name
+									)} / ${this.localize(submissionFile.name)}`,
+									type: 'submissionFile',
+									isCurrentVersion,
+									updateWithNewDoiEndpoint: updateWithNewDoiEndpoint
+								})
+							);
 						});
-					}
-				);
-			}
+					});
+				}
+			});
 			return newMappedItem;
 		},
 		/**

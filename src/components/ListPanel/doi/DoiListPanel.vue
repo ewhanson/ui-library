@@ -168,6 +168,7 @@
 							:is-selected="selected.includes(item.id)"
 							:is-expanded="expanded.includes(item.id)"
 							:enabled-doi-types="enabledDoiTypes"
+							:version-dois="versionDois"
 							:registration-agency-info="registrationAgencyInfo"
 							@select-item="selectItem"
 							@expand-item="expandItem"
@@ -283,6 +284,10 @@ export default {
 			default() {
 				return [];
 			}
+		},
+		versionDois: {
+			type: Boolean,
+			required: true
 		},
 		doiApiUrl: {
 			type: String,
@@ -856,6 +861,7 @@ export default {
 		 *
 		 * @param {DoiObject|null} doiObject
 		 * @param {{id: String, uid: String, displayType: String, type: String, isCurrentVersion: Boolean, updateWithNewDoiEndpoint: String}} props
+		 * @return {DoiObject}
 		 */
 		mapDoiObject(doiObject, props) {
 			return {

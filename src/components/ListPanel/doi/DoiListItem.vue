@@ -85,7 +85,12 @@
 			>
 				<div
 					class="doiListPanel__itemExpandedActions--actionsBar"
-					v-if="item.versions.length > 1 && !isEditingDois && !isSaving"
+					v-if="
+						item.versions.length > 1 &&
+							!isEditingDois &&
+							!isSaving &&
+							versionDois
+					"
 				>
 					{{
 						__('doi.manager.versions.countStatement', {
@@ -320,6 +325,10 @@ export default {
 				return [];
 			}
 		},
+		versionDois: {
+			type: Boolean,
+			required: true
+		},
 		registrationAgencyInfo: {
 			type: Object,
 			required: true
@@ -488,11 +497,13 @@ export default {
 					item => item.uid === mutableDoi.uid
 				);
 				if (oldDoiItem.identifier !== mutableDoi.identifier) {
-					this.itemsToUpdate[mutableDoi.uid] = {
+					let items = {...this.itemsToUpdate};
+					items[mutableDoi.uid] = {
 						isFinished: false,
 						isSuccess: false,
 						...mutableDoi
 					};
+					this.itemsToUpdate = items;
 				}
 			});
 
@@ -506,9 +517,6 @@ export default {
 				this.isEditingDois = false;
 			}
 		},
-		/**
-		 *
-		 */
 		postUpdatedDoi(itemToUpdate) {
 			// Check if this is the first time a DOI is being added to the object
 			if (itemToUpdate.doiId === null) {
@@ -529,7 +537,7 @@ export default {
 			}
 		},
 		/**
-		 * AJAX call to create a brand new DOI object
+		 * AJAX call to create a brand-new DOI object
 		 */
 		addNewDoi(itemToUpdate) {
 			return $.ajax({
@@ -692,7 +700,7 @@ export default {
 							// or force reload entire page
 						},
 						complete(response) {
-							this.itemsToUpdate = {};
+							self.itemsToUpdate = {};
 						}
 					});
 				} else {
